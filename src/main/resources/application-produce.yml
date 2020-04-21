@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    druid:
+      master:
+        driverClassName: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://172.17.0.3:3306/filtergate?autoReconnect=true&useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=CONVERT_TO_NULL&useSSL=false&serverTimezone=CTT
+        username: shoesmall
+        password: master
+      slave:
+        driverClassName: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://172.17.0.3:3307/filtergate?autoReconnect=true&useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=CONVERT_TO_NULL&useSSL=false&serverTimezone=CTT
+        username: shoesmall
+        password: slave

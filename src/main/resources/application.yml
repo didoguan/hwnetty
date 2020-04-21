@@ -1,0 +1,20 @@
+server:
+  port: 8800
+
+spring:
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-request-size: 100MB
+      max-file-size: 100MB
+  application:
+    name: "硬件通讯Netty服务端"
+
+mybatis-plus:
+  typeAliasesPackage: com.deepspc.hwnetty.modular.*.entity
+
+logging:
+  level:
+    root: info
+  path: ./logs
