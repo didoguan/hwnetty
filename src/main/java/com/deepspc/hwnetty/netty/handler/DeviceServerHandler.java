@@ -14,14 +14,12 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
-import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
-import java.util.Date;
 
 import static io.netty.handler.codec.http.HttpUtil.isKeepAlive;
 
@@ -38,16 +36,15 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 
 	private WebSocketServerHandshaker handshaker;
 
+	private static final String END_SIGN = "\r\n";
+
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
-		ByteBuf buff = (ByteBuf) msg;
-		String info = buff.toString(CharsetUtil.UTF_8);
-		log.info("收到消息内容："+info);
+
 	}
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-	    System.out.println("========读取数据=======");
 		//websocket消息处理
 		if (msg instanceof WebSocketFrame) {
 			String webSocketInfo = ((TextWebSocketFrame) msg).text().trim();
@@ -104,6 +101,22 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			}
 		} else {
 			super.userEventTriggered(ctx, evt);
+		}
+	}
+
+	private void socketMsgHandle(ChannelHandlerContext ctx, ByteBuf msg) {
+		String dataStr = msg.toString(CharsetUtil.UTF_8);
+		MessageData messageData = JsonUtil.json2obj(dataStr, MessageData.class);
+		String socketKey = messageData.getId();
+		ChannelSupervise.getChannelMap().put(socketKey, ctx.channel());
+		String[] subId = socketKey.split("_");
+		String websocketKey = subId + "_wsk";
+		//推送信息到前端app
+		Channel channel = ChannelSupervise.getChannelMap().get(websocketKey);
+		if (null != channel) {
+			channel.writeAndFlush(JsonUtil.obj2json(messageData.getDeviceDatas()) + END_SIGN);
+		} else {
+			log.error("终端设备推送信息异常！找不到前端通道，可能已经断开连接。");
 		}
 	}
 

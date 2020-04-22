@@ -34,7 +34,7 @@ public class SwitchProtocolHandle extends ByteToMessageDecoder {
 			ctx.pipeline().remove(IdleStateHandler.class);
 			//ctx.pipeline().remove(LengthFieldBasedFrameDecoder.class);
 			//ctx.pipeline().remove(LengthFieldPrepender.class);
-		}System.out.println("========protocol=======" + protocol);
+		}
 		in.resetReaderIndex();
 		ctx.pipeline().remove(this.getClass());
 	}
