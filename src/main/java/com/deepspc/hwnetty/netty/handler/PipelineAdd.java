@@ -22,7 +22,7 @@ public class PipelineAdd {
 		// ChunkedWriteHandler：向客户端发送HTML5文件
 		ctx.pipeline().addBefore("commonhandler","http-chunked",new ChunkedWriteHandler());
 		ctx.pipeline().addBefore("commonhandler","WebSocketAggregator",new WebSocketFrameAggregator(65535));
-		//用于处理websocket, /getMsg为访问websocket时的uri
+		//用于处理websocket, /wst为访问websocket时的uri
 		ctx.pipeline().addBefore("commonhandler","ProtocolHandler", new WebSocketServerProtocolHandler("/wst"));
 	}
 }

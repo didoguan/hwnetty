@@ -14,6 +14,10 @@ import java.util.List;
 public class MessageData implements Serializable {
 	private static final long serialVersionUID = 1806270963949763998L;
 
+    /**
+     * key值需要进行约定，websocket为设备唯一码加下划线加wsk，
+     * socket为设备唯一码加下划线加sk
+     */
 	private String id;
 
 	private String msg;

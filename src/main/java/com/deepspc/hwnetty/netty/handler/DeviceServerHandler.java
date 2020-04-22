@@ -46,7 +46,8 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 	}
 
 	@Override
-	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {System.out.println("========读取数据=======");
+	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+	    System.out.println("========读取数据=======");
 		//websocket消息处理
 		if (msg instanceof WebSocketFrame) {
 			String webSocketInfo = ((TextWebSocketFrame) msg).text().trim();
@@ -81,7 +82,7 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 		InetSocketAddress reAddr = (InetSocketAddress) ctx.channel().remoteAddress();
 		String clientIP = reAddr.getAddress().getHostAddress();
 		String clientPort = String.valueOf(reAddr.getPort());
-		log.info("websocket连接断开："+ clientIP +":"+ clientPort);
+		log.info("连接断开："+ clientIP +":"+ clientPort);
 		ChannelSupervise.removeChannel(ctx.channel());
 	}
 
@@ -99,7 +100,7 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			if (state == IdleState.READER_IDLE) {
 				// 在规定时间内没有收到客户端的上行数据, 主动断开连接
 				ctx.disconnect();
-				log.info("心跳检测触发，websocket连接断开！");
+				log.info("超过读空闲时间，连接断开！");
 			}
 		} else {
 			super.userEventTriggered(ctx, evt);
@@ -123,12 +124,13 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			MessageData messageData = JsonUtil.json2obj(resp, MessageData.class);
 			String id = messageData.getId();
 			ChannelSupervise.getChannelMap().put(id, ctx.channel());
-			//将客户端ID作为自定义属性加入到channel中，方便随时channel中获取用户ID
-			AttributeKey<String> key = AttributeKey.valueOf("clientId");
-			ctx.channel().attr(key).setIfAbsent(id);
+			/*将客户端ID作为自定义属性加入到channel中，方便随时channel中获取用户ID
+			*AttributeKey<String> key = AttributeKey.valueOf("clientId");
+			*ctx.channel().attr(key).setIfAbsent(id);
+			*/
 		}
 		//返回信息
-		ctx.channel().writeAndFlush("{\"code\":\"200\",\"message\":\"服务器连接成功\"}");
+		ctx.channel().writeAndFlush("{\"code\":\"200\",\"message\":\"服务器连接成功\"}\r\n");
 	}
 
 	private void httpMsgRequest(ChannelHandlerContext ctx, FullHttpRequest req) {

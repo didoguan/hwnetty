@@ -1,6 +1,7 @@
 package com.deepspc.hwnetty.netty.server;
 
 import com.deepspc.hwnetty.netty.handler.DeviceChannelHandler;
+import com.deepspc.hwnetty.netty.handler.DeviceServerHandler;
 import com.deepspc.hwnetty.netty.handler.SwitchProtocolHandle;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -34,7 +35,7 @@ public class NettyTCPServer {
     private Logger log = LoggerFactory.getLogger(NettyTCPServer.class);
 
     @Autowired
-	private DeviceChannelHandler deviceChannelHandler;
+	private DeviceServerHandler deviceServerHandler;
 
     @Value("${server.port}")
     private int port;
@@ -51,12 +52,12 @@ public class NettyTCPServer {
 					@Override
 					protected void initChannel(SocketChannel socketChannel) throws Exception {
 					//Socket 连接心跳检测
-					socketChannel.pipeline().addLast("idleStateHandler", new IdleStateHandler(60, 0, 0));
+					socketChannel.pipeline().addLast("idleStateHandler", new IdleStateHandler(10, 0, 0));
 					socketChannel.pipeline().addLast("switchProtocolHandle", new SwitchProtocolHandle());
 					//注意，这个专门针对 Socket 信息的解码器只能放在 SwitchProtocolHandle 之后，否则会导致 webSocket 连接出错
 					//socketChannel.pipeline().addLast("lengthDecoder", new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE,0,4,0,4));
 					//socketChannel.pipeline().addLast("lengthEncode", new LengthFieldPrepender(4));
-					socketChannel.pipeline().addLast("mysockethandler", deviceChannelHandler);
+					socketChannel.pipeline().addLast("commonhandler", deviceServerHandler);
 					}
 				})
 				//可连接的客户端队列大小

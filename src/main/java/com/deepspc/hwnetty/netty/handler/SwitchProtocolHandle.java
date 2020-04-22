@@ -1,11 +1,8 @@
 package com.deepspc.hwnetty.netty.handler;
 
-import com.deepspc.hwnetty.utils.SpringContextHolder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import java.util.List;
@@ -35,8 +32,8 @@ public class SwitchProtocolHandle extends ByteToMessageDecoder {
 			pipelineAdd.websocketAdd(ctx);
 			//对于 webSocket ，不设置超时断开
 			ctx.pipeline().remove(IdleStateHandler.class);
-			ctx.pipeline().remove(LengthFieldBasedFrameDecoder.class);
-			ctx.pipeline().remove(LengthFieldPrepender.class);
+			//ctx.pipeline().remove(LengthFieldBasedFrameDecoder.class);
+			//ctx.pipeline().remove(LengthFieldPrepender.class);
 		}System.out.println("========protocol=======" + protocol);
 		in.resetReaderIndex();
 		ctx.pipeline().remove(this.getClass());
