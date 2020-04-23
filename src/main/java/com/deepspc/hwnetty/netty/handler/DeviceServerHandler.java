@@ -158,7 +158,8 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			ChannelSupervise.addChannel(ctx.channel());
 		}
 
-		ctx.channel().writeAndFlush("服务器收到信息\r\n");
+		TextWebSocketFrame tws = new TextWebSocketFrame("服务器收到信息");
+		ctx.channel().writeAndFlush(tws);
 	}
 
 	/**
