@@ -3,6 +3,7 @@ package com.deepspc.hwnetty.netty.handler;
 import cn.hutool.core.util.StrUtil;
 import com.deepspc.hwnetty.core.constant.BizConstant;
 import com.deepspc.hwnetty.netty.model.MessageData;
+import com.deepspc.hwnetty.netty.model.ResponseData;
 import com.deepspc.hwnetty.utils.JsonUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -36,8 +37,6 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 	private Logger log = LoggerFactory.getLogger(DeviceServerHandler.class);
 
 	private WebSocketServerHandshaker handshaker;
-
-	private static final String END_SIGN = "\r\n";
 
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -116,6 +115,8 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 	 */
 	private void socketMsgHandle(ChannelHandlerContext ctx, ByteBuf msg) {
 		String dataStr = msg.toString(CharsetUtil.UTF_8);
+        TextWebSocketFrame tws = null;
+        ResponseData resp = new ResponseData();
 		//终端连接时必须发送数据到服务端
 		if (StrUtil.isNotBlank(dataStr)) {
 			MessageData messageData = JsonUtil.json2obj(dataStr, MessageData.class);
@@ -125,10 +126,16 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			ChannelSupervise.addChannel(ctx.channel());
 			String subId = id.split("_")[0];
 			String key = subId + "_wsk";
+			resp.setCode("200");
+			resp.setData(messageData.getDeviceDatas());
 			//推送信息到前端app
-			ChannelSupervise.sendToClient(key, JsonUtil.obj2json(messageData.getDeviceDatas()) + END_SIGN);
+            tws = new TextWebSocketFrame(JsonUtil.obj2json(resp));
+			ChannelSupervise.sendToClient(key, tws);
 		} else {
-			ctx.channel().writeAndFlush("请发送指定格式数据到服务端\r\n");
+		    resp.setCode("400");
+		    resp.setMsg("数据格式不符合规范");
+            tws = new TextWebSocketFrame(JsonUtil.obj2json(resp));
+			ctx.channel().writeAndFlush(tws);
 		}
 
 	}
