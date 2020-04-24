@@ -14,6 +14,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,7 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			ByteBuf buff = (ByteBuf) msg;
 			String socketInfo = buff.toString(CharsetUtil.UTF_8).trim();
 			log.info("收到socket消息："+socketInfo);
+			socketMsgHandle(ctx, buff);
 		}
 	}
 
@@ -71,7 +73,10 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		ChannelSupervise.addChannel(ctx.channel());
+		InetSocketAddress reAddr = (InetSocketAddress) ctx.channel().remoteAddress();
+		String clientIP = reAddr.getAddress().getHostAddress();
+		String clientPort = String.valueOf(reAddr.getPort());
+		log.info("创建连接："+ clientIP +":"+ clientPort);
 	}
 
 	@Override
@@ -104,22 +109,35 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 		}
 	}
 
+	/**
+	 * 处理socket请求
+	 * @param ctx
+	 * @param msg
+	 */
 	private void socketMsgHandle(ChannelHandlerContext ctx, ByteBuf msg) {
 		String dataStr = msg.toString(CharsetUtil.UTF_8);
-		MessageData messageData = JsonUtil.json2obj(dataStr, MessageData.class);
-		String socketKey = messageData.getId();
-		ChannelSupervise.getChannelMap().put(socketKey, ctx.channel());
-		String[] subId = socketKey.split("_");
-		String websocketKey = subId + "_wsk";
-		//推送信息到前端app
-		Channel channel = ChannelSupervise.getChannelMap().get(websocketKey);
-		if (null != channel) {
-			channel.writeAndFlush(JsonUtil.obj2json(messageData.getDeviceDatas()) + END_SIGN);
+		//终端连接时必须发送数据到服务端
+		if (StrUtil.isNotBlank(dataStr)) {
+			MessageData messageData = JsonUtil.json2obj(dataStr, MessageData.class);
+			String id = messageData.getId();
+			setClientId(ctx, id);
+			//添加到Channel组
+			ChannelSupervise.addChannel(ctx.channel());
+			String subId = id.split("_")[0];
+			String key = subId + "_wsk";
+			//推送信息到前端app
+			ChannelSupervise.sendToClient(key, JsonUtil.obj2json(messageData.getDeviceDatas()) + END_SIGN);
 		} else {
-			log.error("终端设备推送信息异常！找不到前端通道，可能已经断开连接。");
+			ctx.channel().writeAndFlush("请发送指定格式数据到服务端\r\n");
 		}
+
 	}
 
+	/**
+	 * 处理websocket请求
+	 * @param ctx
+	 * @param frame
+	 */
 	private void websocketMsgHandle(ChannelHandlerContext ctx, WebSocketFrame frame) {
 		// 判断是否关闭链路的指令
 		if (frame instanceof CloseWebSocketFrame) {
@@ -136,16 +154,19 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 		if (StrUtil.isNotBlank(resp)) {
 			MessageData messageData = JsonUtil.json2obj(resp, MessageData.class);
 			String id = messageData.getId();
-			ChannelSupervise.getChannelMap().put(id, ctx.channel());
-			/*将客户端ID作为自定义属性加入到channel中，方便随时channel中获取用户ID
-			*AttributeKey<String> key = AttributeKey.valueOf("clientId");
-			*ctx.channel().attr(key).setIfAbsent(id);
-			*/
+			setClientId(ctx, id);
+			ChannelSupervise.addChannel(ctx.channel());
 		}
-		//返回信息
-		ctx.channel().writeAndFlush("{\"code\":\"200\",\"message\":\"服务器连接成功\"}\r\n");
+
+		TextWebSocketFrame tws = new TextWebSocketFrame("服务器收到信息");
+		ctx.channel().writeAndFlush(tws);
 	}
 
+	/**
+	 * 处理http请求
+	 * @param ctx
+	 * @param req
+	 */
 	private void httpMsgRequest(ChannelHandlerContext ctx, FullHttpRequest req) {
 		if (!req.decoderResult().isSuccess() || (!"websocket".equals(req.headers().get("Upgrade")))) {
 			//若不是websocket方式，则创建BAD_REQUEST的req，返回给客户端
@@ -176,5 +197,15 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 		if (!isKeepAlive(req) || res.status().code() != 200) {
 			f.addListener(ChannelFutureListener.CLOSE);
 		}
+	}
+
+	/**
+	 * 设置channel中clientId属性值
+	 * @param val
+	 */
+	private void setClientId(ChannelHandlerContext ctx, String val) {
+		//将客户端ID作为自定义属性加入到channel中，方便随时channel中获取用户ID
+		AttributeKey<String> key = AttributeKey.valueOf("clientId");
+		ctx.channel().attr(key).setIfAbsent(val);
 	}
 }

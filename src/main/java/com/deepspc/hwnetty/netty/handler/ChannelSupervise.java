@@ -1,6 +1,7 @@
 package com.deepspc.hwnetty.netty.handler;
 
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson.JSON;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
 import io.netty.channel.group.ChannelGroup;
@@ -8,6 +9,8 @@ import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.GlobalEventExecutor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -20,11 +23,18 @@ import java.util.concurrent.ConcurrentMap;
  **/
 public class ChannelSupervise {
 
+	private static Logger log = LoggerFactory.getLogger(ChannelSupervise.class);
+
 	private static ChannelGroup GlobalGroup = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
 	private static ConcurrentMap<String, Channel> ChannelMap = new ConcurrentHashMap();
 
 	public static void addChannel(Channel channel){
 		GlobalGroup.add(channel);
+		AttributeKey<String> key = AttributeKey.valueOf("clientId");
+		String id = channel.attr(key).get();
+		if (StrUtil.isNotBlank(id)) {
+			ChannelMap.put(id, channel);
+		}
 	}
 
 	public static void removeChannel(Channel channel){
@@ -54,8 +64,12 @@ public class ChannelSupervise {
 	/**
 	 * 发送数据到指定客户端
 	 */
-	public static void sendToClient(String id, TextWebSocketFrame tws) {
+	public static void sendToClient(String id, Object tws) {
 		Channel channel = ChannelMap.get(id);
-		channel.writeAndFlush(tws);
+		if (null != channel) {
+			channel.writeAndFlush(tws);
+		} else {
+			log.error("终端设备推送信息异常！找不到对应通道，可能已经断开连接。");
+		}
 	}
 }
