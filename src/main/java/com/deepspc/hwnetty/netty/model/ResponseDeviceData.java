@@ -11,6 +11,7 @@ import java.io.Serializable;
  **/
 @Data
 public class ResponseDeviceData implements Serializable {
+
     private static final long serialVersionUID = -876983669125082693L;
 
     //唯一码
