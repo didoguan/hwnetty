@@ -149,8 +149,6 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 		} else {
 		    resp.setCode("400");
 		    resp.setMsg("服务器没有接收到任何数据");
-            tws = new TextWebSocketFrame(JsonUtil.obj2json(resp));
-			ctx.channel().writeAndFlush(tws);
 		}
 		try {
 			byte[] strByte = JSON.toJSONString(resp).getBytes("UTF-8");

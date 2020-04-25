@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deepspc.hwnetty.modular.warm.mapper.EquipmentInfoMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.deepspc.hwnetty.modular.warm.entity.EquipmentInfo">
+        <id column="equipment_id" property="equipmentId"/>
+        <result column="equipment_name" property="equipmentName"/>
+        <result column="unique_no" property="uniqueNo"/>
+        <result column="serial_no" property="serialNo"/>
+        <result column="equipment_type" property="equipmentType"/>
+        <result column="watts" property="watts"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="customer_name" property="customerName"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="base_column">
+        equipment_id "equipmentId", equipment_name "equipmentName", unique_no "uniqueNo",
+        serial_no "serialNo", equipment_type "equipmentType", watts "watts",
+        status "status", create_time "createTime", customer_id "customerId", customer_name "customerName"
+    </sql>
+
+    <select id="getEquipments" resultType="BaseResultMap">
+        select
+        <include refid="base_column"/>
+        from wm_equipment_info where customer_id = #{queryParam.customerId}
+        <if test="queryParam.equipmentType != null">
+            and equipment_type = #{queryParam.equipmentType}
+        </if>
+        order by create_time desc
+    </select>
+
+</mapper>
