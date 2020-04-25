@@ -1,7 +1,9 @@
 package com.deepspc.hwnetty.netty.handler;
 
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson.JSON;
 import com.deepspc.hwnetty.core.constant.BizConstant;
+import com.deepspc.hwnetty.netty.model.DeviceSetData;
 import com.deepspc.hwnetty.netty.model.MessageData;
 import com.deepspc.hwnetty.netty.model.ResponseData;
 import com.deepspc.hwnetty.utils.JsonUtil;
@@ -21,7 +23,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.netty.handler.codec.http.HttpUtil.isKeepAlive;
 
@@ -131,13 +136,29 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			//推送信息到前端app
             tws = new TextWebSocketFrame(JsonUtil.obj2json(resp));
 			ChannelSupervise.sendToClient(key, tws);
+
+			List<DeviceSetData> devices = new ArrayList<>(16);
+			DeviceSetData setData = new DeviceSetData();
+			setData.setCustomerId(12345l);
+			setData.setEndTime("18:00");
+			setData.setStartTime("08:00");
+			setData.setTemperature(18.5f);
+			setData.setSerialNo("12345678");
+			devices.add(setData);
+			resp.setData(devices);
 		} else {
 		    resp.setCode("400");
-		    resp.setMsg("数据格式不符合规范");
+		    resp.setMsg("服务器没有接收到任何数据");
             tws = new TextWebSocketFrame(JsonUtil.obj2json(resp));
 			ctx.channel().writeAndFlush(tws);
 		}
-
+		try {
+			byte[] strByte = JSON.toJSONString(resp).getBytes("UTF-8");
+			ByteBuf btu = Unpooled.wrappedBuffer(strByte);
+			ctx.channel().writeAndFlush(btu);
+		} catch(UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -159,14 +180,20 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 
 		String resp = ((TextWebSocketFrame) frame).text();
 		if (StrUtil.isNotBlank(resp)) {
-			MessageData messageData = JsonUtil.json2obj(resp, MessageData.class);
-			String id = messageData.getId();
-			setClientId(ctx, id);
+			List<DeviceSetData> datas = JsonUtil.json2list(resp, DeviceSetData.class);
+			Long customerId = datas.get(0).getCustomerId();
+			String key = String.valueOf(customerId.longValue());
+			setClientId(ctx, key);
 			ChannelSupervise.addChannel(ctx.channel());
+			try {
+				byte[] strByte = resp.getBytes("UTF-8");
+				ByteBuf btu = Unpooled.wrappedBuffer(strByte);
+				//传到终端设备进行设置
+				ChannelSupervise.sendToClient(key, btu);
+			} catch(UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
 		}
-
-		TextWebSocketFrame tws = new TextWebSocketFrame("服务器收到信息");
-		ctx.channel().writeAndFlush(tws);
 	}
 
 	/**

@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * @Description 用于传输数据
+ * @Description 终端传到app的实时数据
  * @Author didoguan
  * @Date 2020/4/19
  **/

@@ -52,7 +52,7 @@ public class NettyTCPServer {
 					@Override
 					protected void initChannel(SocketChannel socketChannel) throws Exception {
 					//Socket 连接心跳检测
-					socketChannel.pipeline().addLast("idleStateHandler", new IdleStateHandler(10, 0, 0));
+					socketChannel.pipeline().addLast("idleStateHandler", new IdleStateHandler(60, 0, 0));
 					socketChannel.pipeline().addLast("switchProtocolHandle", new SwitchProtocolHandle());
 					//注意，这个专门针对 Socket 信息的解码器只能放在 SwitchProtocolHandle 之后，否则会导致 webSocket 连接出错
 					//socketChannel.pipeline().addLast("lengthDecoder", new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE,0,4,0,4));

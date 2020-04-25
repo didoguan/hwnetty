@@ -10,10 +10,12 @@ import java.io.Serializable;
  * @Date 2020/4/23
  **/
 @Data
-public class ResponseDeviceData implements Serializable {
+public class DeviceSetData implements Serializable {
 
     private static final long serialVersionUID = -876983669125082693L;
 
+    //客户标识
+    private Long customerId;
     //唯一码
     private String uniqueNo;
     //序列号
@@ -25,7 +27,7 @@ public class ResponseDeviceData implements Serializable {
     //结束时间
     private String endTime;
 
-    public ResponseDeviceData() {
+    public DeviceSetData() {
 
     }
 }
