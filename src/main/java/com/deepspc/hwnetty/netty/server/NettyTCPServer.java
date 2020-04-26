@@ -1,6 +1,5 @@
 package com.deepspc.hwnetty.netty.server;
 
-import com.deepspc.hwnetty.netty.handler.DeviceChannelHandler;
 import com.deepspc.hwnetty.netty.handler.DeviceServerHandler;
 import com.deepspc.hwnetty.netty.handler.SwitchProtocolHandle;
 import io.netty.bootstrap.ServerBootstrap;
@@ -11,8 +10,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;

@@ -1,9 +1,7 @@
 package com.deepspc.hwnetty.netty.handler;
 
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.fastjson.JSON;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelId;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -33,6 +31,7 @@ public class ChannelSupervise {
 		AttributeKey<String> key = AttributeKey.valueOf("clientId");
 		String id = channel.attr(key).get();
 		if (StrUtil.isNotBlank(id)) {
+		    log.info("添加到ChannelMap中的channel为：{}", id);
 			ChannelMap.put(id, channel);
 		}
 	}
@@ -42,6 +41,7 @@ public class ChannelSupervise {
 		AttributeKey<String> key = AttributeKey.valueOf("clientId");
 		String id = channel.attr(key).get();
 		if (StrUtil.isNotBlank(id)) {
+            log.info("删除ChannelMap中的channel为：{}", id);
 			ChannelMap.remove(id);
 		}
 	}
@@ -65,6 +65,7 @@ public class ChannelSupervise {
 	 * 发送数据到指定客户端
 	 */
 	public static void sendToClient(String id, Object tws) {
+	    log.info("发送数据到channel:{}", id);
 		Channel channel = ChannelMap.get(id);
 		if (null != channel) {
 			channel.writeAndFlush(tws);
