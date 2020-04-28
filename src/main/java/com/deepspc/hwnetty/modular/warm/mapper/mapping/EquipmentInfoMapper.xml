@@ -16,21 +16,4 @@
         <result column="customer_name" property="customerName"/>
     </resultMap>
 
-    <!-- 通用查询结果列 -->
-    <sql id="base_column">
-        equipment_id "equipmentId", equipment_name "equipmentName", unique_no "uniqueNo",
-        serial_no "serialNo", equipment_type "equipmentType", watts "watts",
-        status "status", create_time "createTime", customer_id "customerId", customer_name "customerName"
-    </sql>
-
-    <select id="getEquipments" resultType="BaseResultMap">
-        select
-        <include refid="base_column"/>
-        from wm_equipment_info where customer_id = #{queryParam.customerId}
-        <if test="queryParam.equipmentType != null">
-            and equipment_type = #{queryParam.equipmentType}
-        </if>
-        order by create_time desc
-    </select>
-
 </mapper>

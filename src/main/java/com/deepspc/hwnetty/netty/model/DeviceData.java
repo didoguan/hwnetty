@@ -25,5 +25,8 @@ public class DeviceData implements Serializable {
 	private Integer status;
 	//设备类型 1-主机 2-温度执行器
 	private Integer deviceType;
-
+    //开始时间
+    private String startTime;
+    //结束时间
+    private String endTime;
 }

@@ -1,12 +1,16 @@
 package com.deepspc.hwnetty.netty.handler;
 
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.fastjson.JSON;
+import com.baomidou.mybatisplus.core.conditions.query.Query;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.deepspc.hwnetty.core.constant.BizConstant;
 import com.deepspc.hwnetty.modular.warm.entity.EquipmentInfo;
+import com.deepspc.hwnetty.modular.warm.entity.RoomHis;
+import com.deepspc.hwnetty.modular.warm.entity.RoomInfo;
 import com.deepspc.hwnetty.modular.warm.mapper.EquipmentInfoMapper;
-import com.deepspc.hwnetty.modular.warm.model.QueryParam;
-import com.deepspc.hwnetty.netty.model.DeviceSetData;
+import com.deepspc.hwnetty.modular.warm.mapper.RoomInfoMapper;
+import com.deepspc.hwnetty.modular.warm.service.IRoomHisService;
+import com.deepspc.hwnetty.netty.model.DeviceData;
 import com.deepspc.hwnetty.netty.model.MessageData;
 import com.deepspc.hwnetty.netty.model.ResponseData;
 import com.deepspc.hwnetty.utils.JsonUtil;
@@ -22,8 +26,10 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
+import lombok.val;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -44,8 +50,12 @@ import static io.netty.handler.codec.http.HttpUtil.isKeepAlive;
 public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 
 	private Logger log = LoggerFactory.getLogger(DeviceServerHandler.class);
-	@Resource
+    @Resource
 	private EquipmentInfoMapper equipmentInfoMapper;
+    @Resource
+    private RoomInfoMapper roomInfoMapper;
+    @Autowired
+    private IRoomHisService roomHisService;
 
 	private WebSocketServerHandshaker handshaker;
 
@@ -127,15 +137,12 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 	/**
 	 * 处理socket请求<br>
      * 1.终端设备发送硬件实时数据，netty查找websocket通道再发送到app显示。
-     * 2.终端设备接收app设置的数据，终端完成设置后发送状态告诉服务器是否设置完成，
-     * code为200表示设置完成，400表示设置失败。
+     * 2.netty保存数据
 	 * @param ctx
 	 * @param msg
 	 */
 	private void socketMsgHandle(ChannelHandlerContext ctx, ByteBuf msg) {
 		String dataStr = msg.toString(CharsetUtil.UTF_8);
-        TextWebSocketFrame tws = null;
-        ResponseData resp = new ResponseData();
 		//终端连接时必须发送数据到服务端
 		if (StrUtil.isNotBlank(dataStr)) {
 			MessageData messageData = JsonUtil.json2obj(dataStr, MessageData.class);
@@ -144,40 +151,58 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			//添加到Channel组
 			ChannelSupervise.addChannel(ctx.channel());
 			String subId = id.split("_")[0];
-			String key = subId + WEBSOCKET_SUFFIX;
-			resp.setCode("200");
-			resp.setData(messageData.getDeviceDatas());
-			//推送信息到前端app
-            tws = new TextWebSocketFrame(JsonUtil.obj2json(resp));
-			ChannelSupervise.sendToClient(key, tws);
-
-			List<DeviceSetData> devices = new ArrayList<>(16);
-			DeviceSetData setData = new DeviceSetData();
-			setData.setCustomerId(12345l);
-			setData.setEndTime("18:00");
-			setData.setStartTime("08:00");
-			setData.setTemperature(18.5f);
-			setData.setSerialNo("12345678");
-			devices.add(setData);
-			resp.setData(devices);
+			String suffix = id.split("_")[1];
+			String key = "";
+			if (SOCKET_SUFFIX.equals(suffix)) {
+			    /* 1.来源为终端硬件，保存数据为历史数据
+			     * 2.主动推送到前端app
+			     */
+                key = subId + WEBSOCKET_SUFFIX;
+                List<DeviceData> datas = messageData.getDeviceDatas();
+                //传送到前端
+                TextWebSocketFrame tws = new TextWebSocketFrame(JsonUtil.obj2json(datas));
+                ChannelSupervise.sendToClient(key, tws);
+                /**********保存数据到历史表*********/
+                List<RoomHis> hisDatas = new ArrayList<>(16);
+                for (DeviceData data : datas) {
+                    if (data.getDeviceType().intValue() == 1) {
+                        continue;
+                    }
+                    RoomHis rm = new RoomHis();
+                    rm.setUniqueNo(data.getUniqueNo());
+                    rm.setSerialNo(data.getSerialNo());
+                    rm.setTemperature(data.getTemperature());
+                    rm.setHumidity(data.getHumidity());
+                    hisDatas.add(rm);
+                    //更新房间状态
+                    roomInfoMapper.updateRoomInfoStatus(data.getStatus(), data.getUniqueNo(), data.getSerialNo());
+                }
+                roomHisService.saveBatch(hisDatas);
+            } else if (SPRINGBOOT_SUFFIX.equals(suffix)) {
+			    //来源为spring服务器，传输数据到终端硬件
+                key = subId + SOCKET_SUFFIX;
+                ChannelSupervise.sendToClient(key, msg);
+            }
 		} else {
-		    resp.setCode("400");
-		    resp.setMsg("服务器没有接收到任何数据");
-		}
-		try {
-			byte[] strByte = JSON.toJSONString(resp).getBytes("UTF-8");
-			ByteBuf btu = Unpooled.wrappedBuffer(strByte);
-			ctx.channel().writeAndFlush(btu);
-		} catch(UnsupportedEncodingException e) {
-			e.printStackTrace();
+            MessageData messageData = new MessageData();
+            messageData.setId("400");
+            messageData.setMsg("服务器没收到传输数据");
+            String str = JsonUtil.obj2json(messageData);
+            try {
+                byte[] strByte = str.getBytes("UTF-8");
+                ByteBuf btu = Unpooled.wrappedBuffer(strByte);
+                //传到终端设备进行设置
+                ctx.channel().writeAndFlush(btu);
+            } catch(UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
 		}
 	}
 
 	/**
 	 * 处理websocket请求<br>
-     * 1.app发送连接请求，netty保存通道。code为300表示请求实时数据显示，
-     * code为301表示请求设置硬件数据。
-     * 2.netty接收到请求设置硬件数据时获取终端设备通道，传送设置数据
+     * 1.app发送连接请求，netty只需保存websocket的通道。
+     * 1.传入的数据code必须为客户标识
 	 * @param ctx
 	 * @param frame
 	 */
@@ -193,41 +218,29 @@ public class DeviceServerHandler extends SimpleChannelInboundHandler<Object> {
 			return;
 		}
 
-		String wskStr = ((TextWebSocketFrame) frame).text();
+        String wskStr = ((TextWebSocketFrame) frame).text();
+        ResponseData respWsk = new ResponseData();
 		if (StrUtil.isNotBlank(wskStr)) {
-			List<DeviceSetData> datas = JsonUtil.json2list(wskStr, DeviceSetData.class);
-			Long customerId = datas.get(0).getCustomerId();
-			//根据customerId获取对应的主机唯一码
-            QueryParam queryParam = new QueryParam();
-            queryParam.setCustomerId(customerId);
-            queryParam.setEquipmentType(1);
-            List<EquipmentInfo> equipmentInfos = equipmentInfoMapper.getEquipments(queryParam);
-            if (null != equipmentInfos && !equipmentInfos.isEmpty()) {
-                EquipmentInfo equipmentInfo = equipmentInfos.get(0);
-                String uniqueNo = equipmentInfo.getUniqueNo();
-                setClientId(ctx, uniqueNo + WEBSOCKET_SUFFIX);
+            ResponseData wskData = JsonUtil.json2obj(wskStr, ResponseData.class);
+            Long customerId = Long.valueOf(wskData.getCode());
+            QueryWrapper<EquipmentInfo> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("customer_id", customerId);
+            queryWrapper.eq("equipment_type", 1);
+            EquipmentInfo equipmentInfo = equipmentInfoMapper.selectOne(queryWrapper);
+            if (null != equipmentInfo) {
+                setClientId(ctx, equipmentInfo.getUniqueNo() + WEBSOCKET_SUFFIX);
                 ChannelSupervise.addChannel(ctx.channel());
-                String skId = uniqueNo + SOCKET_SUFFIX;
-                ResponseData resp = new ResponseData();
-                resp.setCode("200");
-                resp.setMsg("来自客户端的数据");
-                resp.setData(wskStr);
-                try {
-                    byte[] strByte = wskStr.getBytes("UTF-8");
-                    ByteBuf btu = Unpooled.wrappedBuffer(strByte);
-                    //传到终端设备进行设置
-                    ChannelSupervise.sendToClient(skId, btu);
-                } catch(UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                ResponseData resp = new ResponseData();
-                resp.setCode("400");
-                resp.setMsg("找不到对应的设备编码");
-                TextWebSocketFrame tws = new TextWebSocketFrame(JsonUtil.obj2json(resp));
-                ctx.channel().writeAndFlush(tws);
             }
-		}
+
+            /**************响应前端连接************/
+            respWsk.setCode("200");
+            respWsk.setMsg("已接收到请求");
+        } else {
+            respWsk.setCode("201");
+            respWsk.setMsg("已连接，但无传入数据！");
+        }
+        TextWebSocketFrame respStr = new TextWebSocketFrame(JsonUtil.obj2json(respWsk));
+        ctx.channel().writeAndFlush(respStr);
 	}
 
 	/**

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deepspc.hwnetty.modular.warm.mapper.RoomInfoMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.deepspc.hwnetty.modular.warm.entity.RoomInfo">
+        <id column="room_id" property="roomId"/>
+        <result column="room_name" property="roomName"/>
+        <result column="model_id" property="modelId"/>
+        <result column="unique_no" property="uniqueNo"/>
+        <result column="serial_no" property="serialNo"/>
+        <result column="temperature" property="temperature"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="status" property="status"/>
+        <result column="runing_status" property="runingStatus"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="icon_id" property="iconId"/>
+        <result column="icon_path" property="iconPath"/>
+    </resultMap>
+
+    <update id="updateRoomInfoStatus">
+        update wm_room_info set status = #{status} where unique_no = #{uniqueNo} and serial_no = #{serialNo}
+    </update>
+</mapper>
